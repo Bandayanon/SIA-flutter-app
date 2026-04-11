@@ -94,9 +94,20 @@ class _LoginScreenState extends State<LoginScreen> {
             'counselorId': data['counselorId'],
             'firstName':   data['firstName'],
             'lastName':    data['lastName'],
+            'role':        data['role'],
           });
-          context.go('/guidance-counselor/dashboard');
+          if (data['role'] == 'super_admin') {
+              context.go('/admin/dashboard');
+          } else {
+              context.go('/guidance-counselor/dashboard');
+          }
         }
+      } else if (data['status'] == 'otp_pending') {
+          if (!mounted) return;
+          context.go('/verify-otp', extra: {
+              'email': data['email'],
+              'counselorId': data['counselorId'],
+          });
       } else {
         setState(() => _errorMessage = data['message'] ?? 'Login failed');
       }
@@ -171,12 +182,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           // ── Title with Montserrat (STRICTLY login screen only) ──
                           Text(
-                            'RIASEC Assessment',
+                            _userType == 'admin' ? 'Citadel Portal' : 'RIASEC Assessment',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.montserrat(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.textPrimary,
+                              color: _userType == 'admin' ? AppTheme.error : AppTheme.textPrimary,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -184,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           // Subtitle keeps the default theme font
                           Text(
-                            'Career Assessment System',
+                            _userType == 'admin' ? 'Secure Administration Access' : 'Career Assessment System',
                             textAlign: TextAlign.center,
                             style:
                                 Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -193,11 +204,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'v2.0 - Security Hardened',
+                            _userType == 'admin' ? 'Project Citadel Level 4' : 'v2.0 - Security Hardened',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 10,
-                              color: AppTheme.primaryPurple.withOpacity(0.5),
+                              color: _userType == 'admin' ? AppTheme.error.withOpacity(0.5) : AppTheme.primaryPurple.withOpacity(0.5),
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
                             ),
@@ -205,29 +216,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 28),
 
                           // ── Role Toggle ───────────────────────────────────────
-                          SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(
-                                value: 'student',
-                                label: Text('Student'),
-                                icon: Icon(Icons.person),
-                              ),
-                              ButtonSegment(
-                                value: 'guidance_counselor',
-                                label: Text('Counselor'),
-                                icon: Icon(Icons.psychology),
-                              ),
-                            ],
-                            selected: {_userType},
-                            onSelectionChanged: (Set<String> newSelection) {
-                              setState(() {
-                                _userType = newSelection.first;
-                                _primaryController.clear();
-                                _errorMessage = '';
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 24),
+                          if (_userType != 'admin')
+                            SegmentedButton<String>(
+                              segments: const [
+                                ButtonSegment(
+                                  value: 'student',
+                                  label: Text('Student'),
+                                  icon: Icon(Icons.person),
+                                ),
+                                ButtonSegment(
+                                  value: 'guidance_counselor',
+                                  label: Text('Counselor'),
+                                  icon: Icon(Icons.psychology),
+                                ),
+                              ],
+                              selected: {_userType},
+                              onSelectionChanged: (Set<String> newSelection) {
+                                setState(() {
+                                  _userType = newSelection.first;
+                                  _primaryController.clear();
+                                  _errorMessage = '';
+                                });
+                              },
+                            ),
+                          if (_userType != 'admin') const SizedBox(height: 24),
 
                           // ── ID / Email field ──────────────────────────────────
                           TextFormField(
@@ -251,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? 'Please enter your Student ID'
                                     : 'Please enter your email';
                               }
-                              if (_userType == 'guidance_counselor' &&
+                              if (_userType != 'student' &&
                                   !value.contains('@')) {
                                 return 'Please enter a valid email';
                               }
@@ -324,6 +336,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               : ElevatedButton(
                                   onPressed: _handleLogin,
                                   style: ElevatedButton.styleFrom(
+                                    backgroundColor: _userType == 'admin' ? AppTheme.error : AppTheme.primaryPurple,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 16),
                                   ),
@@ -349,6 +362,49 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ],
+
+                          // ── Admin Login Button (Counselor only) ───────────────
+                          if (_userType == 'guidance_counselor') ...[
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _userType = 'admin';
+                                  _primaryController.clear();
+                                  _passwordController.clear();
+                                  _errorMessage = '';
+                                });
+                              },
+                              child: Text(
+                                "Admin Login",
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          // ── Back to Counselor (Admin only) ────────────────────
+                          if (_userType == 'admin') ...[
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _userType = 'guidance_counselor';
+                                  _primaryController.clear();
+                                  _passwordController.clear();
+                                  _errorMessage = '';
+                                });
+                              },
+                              child: Text(
+                                "Back to Staff Portal",
+                                style: TextStyle(
+                                  color: AppTheme.primaryPurple.withOpacity(0.8),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -361,4 +417,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
+}

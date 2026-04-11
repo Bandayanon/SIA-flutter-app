@@ -14,7 +14,8 @@ import '../screens/student/results_screen.dart';
 import '../screens/student/student_dashboard.dart';
 import '../screens/student/student_details_form.dart';
 import '../screens/student/student_registration_screen.dart';
-import '../screens/admin/admin_dashboard.dart';
+import '../screens/admin/admin_dashboard_v2.dart';
+import '../screens/shared/otp_screen.dart';
 import '../services/session_manager.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -45,6 +46,13 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const StudentRegistrationScreen(),
+    ),
+    GoRoute(
+      path: '/verify-otp',
+      builder: (context, state) {
+        final extraData = state.extra as Map<String, dynamic>?;
+        return OtpScreen(extraData: extraData);
+      },
     ),
     // Student Routes
     GoRoute(
@@ -101,7 +109,7 @@ final GoRouter appRouter = GoRouter(
     // Admin Routes
     GoRoute(
       path: '/admin/dashboard',
-      builder: (context, state) => const AdminDashboard(),
+      builder: (context, state) => const AdminDashboardV2(),
     ),
   ],
 );

@@ -10,8 +10,9 @@ include 'db_connect.php';
 
 $headers = getallheaders();
 $pin = $headers['X-Admin-Pin'] ?? $_SERVER['HTTP_X_ADMIN_PIN'] ?? '';
+$envPin = getenv('ADMIN_PIN') ?: '1234567';
 
-if ($pin !== '1234567') {
+if ($pin !== $envPin) {
     echo json_encode(["status" => "error", "message" => "Unauthorized access. Invalid Admin PIN."]);
     exit();
 }

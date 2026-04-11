@@ -1,8 +1,8 @@
 <?php
-@header("Content-Type: application/json");
-@header("Access-Control-Allow-Origin: *");
-@header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-@header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
 
 // Disable default PHP 8.1+ mysqli exceptions (prevent silent crashes)
 @mysqli_report(MYSQLI_REPORT_OFF);
@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 try {
     include 'db_connect.php';
 
-    $data     = json_decode(file_get_contents("php://input"), true);
-    $role     = $data['role']     ?? '';
+    $data = json_decode(file_get_contents("php://input"), true);
+    $role = $data['role'] ?? '';
     $password = $data['password'] ?? '';
 
     if (empty($role) || empty($password)) {
@@ -28,12 +28,12 @@ try {
         if (empty($student_id)) {
             die(json_encode(["status" => "error", "message" => "Student ID is required"]));
         }
-        
+
         $stmt = $conn->prepare("SELECT StudentID, FirstName, LastName, Password, IsBlocked FROM students WHERE StudentID = ? LIMIT 1");
         if (!$stmt) {
             die(json_encode(["status" => "error", "message" => "Database Search Error (S1). Please check if 'students' table exists."]));
         }
-        
+
         $stmt->bind_param("s", $student_id);
         if (!$stmt->execute()) {
             die(json_encode(["status" => "error", "message" => "Database Execution Error (S2)"]));
@@ -42,7 +42,7 @@ try {
 
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
-            if (isset($user['IsBlocked']) && (int)$user['IsBlocked'] === 1) {
+            if (isset($user['IsBlocked']) && (int) $user['IsBlocked'] === 1) {
                 die(json_encode(["status" => "error", "message" => "Account has been suspended by an Admin."]));
             }
             if (password_verify($password, $user['Password'])) {
@@ -57,11 +57,11 @@ try {
                 }
 
                 echo json_encode([
-                    "status"           => "success",
-                    "role"             => "student",
-                    "studentId"        => $user['StudentID'],
-                    "firstName"        => $user['FirstName'],
-                    "lastName"         => $user['LastName'],
+                    "status" => "success",
+                    "role" => "student",
+                    "studentId" => $user['StudentID'],
+                    "firstName" => $user['FirstName'],
+                    "lastName" => $user['LastName'],
                     "assessmentStatus" => $assessmentStatus
                 ]);
             } else {
@@ -76,30 +76,28 @@ try {
         if (empty($email)) {
             die(json_encode(["status" => "error", "message" => "Email is required"]));
         }
-        
+
         $stmt = $conn->prepare("SELECT CounselorID, FirstName, LastName, Password, IsBlocked FROM counselors WHERE Email = ? LIMIT 1");
         if (!$stmt) {
-           die(json_encode(["status" => "error", "message" => "Database Search Error (G1). Please check if 'counselors' table exists."]));
+            die(json_encode(["status" => "error", "message" => "Database Search Error (G1)."]));
         }
-        
+
         $stmt->bind_param("s", $email);
-        if (!$stmt->execute()) {
-            die(json_encode(["status" => "error", "message" => "Database Execution Error (G2)"]));
-        }
+        $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
-            if (isset($user['IsBlocked']) && (int)$user['IsBlocked'] === 1) {
+            if (isset($user['IsBlocked']) && (int) $user['IsBlocked'] === 1) {
                 die(json_encode(["status" => "error", "message" => "Counselor account suspended by Admin."]));
             }
             if (password_verify($password, $user['Password'])) {
                 echo json_encode([
-                    "status"      => "success",
-                    "role"        => "guidance_counselor",
+                    "status" => "success",
+                    "role" => "guidance_counselor",
                     "counselorId" => $user['CounselorID'],
-                    "firstName"   => $user['FirstName'],
-                    "lastName"    => $user['LastName']
+                    "firstName" => $user['FirstName'],
+                    "lastName" => $user['LastName']
                 ]);
             } else {
                 echo json_encode(["status" => "error", "message" => "Invalid credentials (password mismatch)"]);
@@ -107,11 +105,68 @@ try {
         } else {
             echo json_encode(["status" => "error", "message" => "Invalid credentials (counselor not found)"]);
         }
+
+    } elseif ($role === 'admin') {
+        $email = $data['email'] ?? '';
+        if (empty($email)) {
+            die(json_encode(["status" => "error", "message" => "Email is required"]));
+        }
+
+        $stmt = $conn->prepare("SELECT AdminID, FirstName, LastName, Password, IsBlocked, RoleID FROM admins WHERE Email = ? LIMIT 1");
+        if (!$stmt) {
+            die(json_encode(["status" => "error", "message" => "Database Search Error (A1)."]));
+        }
+
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+            if (isset($user['IsBlocked']) && (int) $user['IsBlocked'] === 1) {
+                die(json_encode(["status" => "error", "message" => "Account suspended by Super Admin."]));
+            }
+            if (password_verify($password, $user['Password'])) {
+                // --- CITADEL V2: 2-STEP AUTH FOR ADMINS ONLY ---
+                $otp = sprintf("%06d", random_int(100000, 999999));
+                $expiry = date("Y-m-d H:i:s", strtotime("+10 minutes"));
+                
+                $upd = $conn->prepare("UPDATE admins SET OTP_Code = ?, OTP_Expiry = ? WHERE AdminID = ?");
+                $upd->bind_param("ssi", $otp, $expiry, $user['AdminID']);
+                
+                if ($upd->execute()) {
+                    require_once 'mailer.php';
+                    if (sendOTPEmail($email, $user['FirstName'], $otp)) {
+                        echo json_encode([
+                            "status"   => "otp_pending",
+                            "message"  => "Verification code sent to your email.",
+                            "email"    => $email,
+                            "adminId"  => $user['AdminID']
+                        ]);
+                    } else {
+                        error_log("Failed to send OTP to $email - check Mailtrap or Gmail settings.");
+                        echo json_encode([
+                            "status"   => "error",
+                            "message"  => "Failed to send OTP email. Port might be blocked."
+                        ]);
+                    }
+                } else {
+                    echo json_encode(["status" => "error", "message" => "Failed to generate security code."]);
+                }
+                // ------------------------------------
+            } else {
+                echo json_encode(["status" => "error", "message" => "Invalid credentials (password mismatch)"]);
+            }
+        } else {
+            echo json_encode(["status" => "error", "message" => "Invalid credentials (admin not found)"]);
+        }
     } else {
         echo json_encode(["status" => "error", "message" => "Invalid role selected."]);
     }
-    
-    if (isset($conn)) { @$conn->close(); }
+
+    if (isset($conn)) {
+        @$conn->close();
+    }
 
 } catch (Exception $e) {
     echo json_encode([

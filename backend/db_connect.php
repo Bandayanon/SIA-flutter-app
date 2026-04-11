@@ -1,8 +1,20 @@
 <?php
 // Quiet Shield: Prevent PHP from sending HTML errors that break the Flutter JSON
-@ini_set('display_errors', 0);
-@error_reporting(0);
-@header("Content-Type: application/json");
+ini_set('display_errors', 0);
+error_reporting(0);
+header("Content-Type: application/json");
+
+// --- STEP 1: LOAD .ENV MANUALLY ---
+function loadEnv($path) {
+    if (!file_exists($path)) return;
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        list($name, $value) = explode('=', $line, 2);
+        putenv(trim($name) . "=" . trim($value));
+    }
+}
+loadEnv(__DIR__ . '/.env');
 
 // Database credentials from environment variables
 $host = getenv('DB_HOST') ?: "db";

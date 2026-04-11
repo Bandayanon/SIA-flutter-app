@@ -46,15 +46,29 @@ $stuQuery = $conn->prepare("
 $stuQuery->bind_param("i", $assessmentId);
 $stuQuery->execute();
 $stuRes = $stuQuery->get_result();
-if ($stuRow = $stuRes->fetch_assoc()) {
-    // We call this but don't let it crash the script if it fails
-    try {
-        sendAssessmentEmail($stuRow['Email'], $stuRow['FirstName'], $action, $notes, 'sam.bandayanon@jmc.edu.ph');
-    } catch (Exception $e) {
-        error_log("Non-fatal mailer error: " . $e->getMessage());
-    }
-}
+    if ($stuRow = $stuRes->fetch_assoc()) {
+        // We call the mailer but ensure it doesn't break the response if it fails or slows down
+        $mailResult = false;
+        try {
+            $mailResult = sendAssessmentEmail($stuRow['Email'], $stuRow['FirstName'], $action, $notes, 'sam.bandayanon@jmc.edu.ph');
+        } catch (Throwable $e) {
+            error_log("CRITICAL MAILER FAILURE: " . $e->getMessage());
+        }
 
-echo json_encode(["status" => "success", "message" => "Assessment $action successfully"]);
+        if ($mailResult) {
+            echo json_encode(["status" => "success", "message" => "Assessment $action successfully and email sent."]);
+        } else {
+            // We still return success for the assessment update, but note the email skip
+            echo json_encode([
+                "status" => "success", 
+                "message" => "Assessment $action, but email notification failed (likely blocked by server).",
+                "email_error" => true
+            ]);
+        }
+    } else {
+        // Fallback if student info missing but DB update was successful
+        echo json_encode(["status" => "success", "message" => "Assessment $action successfully, but student email info could not be found."]);
+    }
+
 $conn->close();
 ?>

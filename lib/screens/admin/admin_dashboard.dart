@@ -3,6 +3,7 @@ import '../../theme/app_theme.dart';
 import 'admin_registration.dart';
 import 'admin_user_manage.dart';
 import 'admin_data_manage.dart';
+import 'admin_monitoring.dart';
 import 'package:go_router/go_router.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -19,7 +20,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Citadel Command Center', style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -42,12 +43,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
               labelType: NavigationRailLabelType.all,
               destinations: const [
                 NavigationRailDestination(
-                  icon: Icon(Icons.person_add),
-                  label: Text('Register'),
+                  icon: Icon(Icons.dashboard),
+                  label: Text('Monitoring'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.manage_accounts),
                   label: Text('Users'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person_add),
+                  label: Text('Register'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.history_edu),
@@ -61,8 +66,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: IndexedStack(
               index: _selectedIndex,
               children: const [
-                AdminRegistration(),
+                AdminMonitoring(),
                 AdminUserManage(),
+                AdminRegistration(),
                 AdminDataManage(),
               ],
             ),
