@@ -88,6 +88,7 @@ class _StudentFeedbackScreenState extends State<StudentFeedbackScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _isSubmitting = true);
     try {
@@ -97,6 +98,8 @@ class _StudentFeedbackScreenState extends State<StudentFeedbackScreen> {
         counselorId: _session.counselorId!,
         notes: _notesController.text.trim(),
       );
+
+      if (!mounted) return;
 
       if (data['status'] == 'success') {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,6 +122,7 @@ class _StudentFeedbackScreenState extends State<StudentFeedbackScreen> {
         );
       }
     } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to submit. Check your connection.'),
@@ -126,7 +130,10 @@ class _StudentFeedbackScreenState extends State<StudentFeedbackScreen> {
         ),
       );
     }
-    setState(() => _isSubmitting = false);
+    
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
   }
 
   @override
