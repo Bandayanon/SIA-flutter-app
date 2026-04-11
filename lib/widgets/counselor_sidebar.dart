@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../theme/app_theme.dart';
 
 class CounselorSidebar extends StatelessWidget {
@@ -85,7 +86,7 @@ class CounselorSidebar extends StatelessWidget {
           _buildNavItem(
             context,
             icon: Icons.psychology,
-            title: 'AI Feedback Learning',
+            title: 'Student Feedback',
             route: '/guidance-counselor/ai-feedback',
             isSelected: currentRoute == '/guidance-counselor/ai-feedback',
           ),

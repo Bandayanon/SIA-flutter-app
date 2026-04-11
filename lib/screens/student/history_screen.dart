@@ -1,49 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
+import '../../services/api_service.dart';
+import '../../services/session_manager.dart';
 import '../../theme/app_theme.dart';
-import '../../models/riasec_models.dart';
 import '../../widgets/student_sidebar.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Sample history data for demo
-    final historyItems = [
-      AssessmentResult(
-        id: '1',
-        studentId: 'student123',
-        completedAt: DateTime.now().subtract(const Duration(days: 5)),
-        scores: [],
-        primaryType: RIASECType.investigative,
-        secondaryType: RIASECType.artistic,
-        recommendedCourses: ['Computer Science', 'Data Science', 'Research Methods'],
-        status: 'approved',
-      ),
-      AssessmentResult(
-        id: '2',
-        studentId: 'student123',
-        completedAt: DateTime.now().subtract(const Duration(days: 30)),
-        scores: [],
-        primaryType: RIASECType.social,
-        secondaryType: RIASECType.enterprising,
-        recommendedCourses: ['Psychology', 'Education', 'Business'],
-        status: 'approved',
-      ),
-      AssessmentResult(
-        id: '3',
-        studentId: 'student123',
-        completedAt: DateTime.now().subtract(const Duration(days: 60)),
-        scores: [],
-        primaryType: RIASECType.artistic,
-        secondaryType: RIASECType.investigative,
-        recommendedCourses: ['Graphic Design', 'Fine Arts', 'Media Studies'],
-        status: 'approved',
-      ),
-    ];
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
 
+class _HistoryScreenState extends State<HistoryScreen> {
+  final _session = SessionManager();
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _history = [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getHistory(_session.studentId!);
+      if (data['status'] == 'success') {
+        setState(() {
+          _history = List<Map<String, dynamic>>.from(data['history']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() { _error = data['message']; _isLoading = false; });
+      }
+    } catch (e) {
+      setState(() { _error = 'Failed to load history.'; _isLoading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       drawer: StudentSidebar(currentRoute: '/student/history'),
       appBar: AppBar(
@@ -51,9 +52,7 @@ class HistoryScreen extends StatelessWidget {
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
         actions: [
@@ -64,378 +63,181 @@ class HistoryScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: historyItems.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 64,
-                    color: AppTheme.textSecondary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No Assessment History',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Complete your first assessment to see your history here',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => context.go('/student/assessment'),
-                    icon: const Icon(Icons.quiz),
-                    label: const Text('Take Assessment'),
-                  ),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                // Overview Card
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  color: AppTheme.backgroundWhite,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          context,
-                          'Total Assessments',
-                          historyItems.length.toString(),
-                          Icons.assessment,
-                          AppTheme.primaryPurple,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildStatCard(
-                          context,
-                          'Approved',
-                          historyItems.where((item) => item.status == 'approved').length.toString(),
-                          Icons.check_circle,
-                          const Color.fromARGB(255, 53, 245, 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // History List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: historyItems.length,
-                    itemBuilder: (context, index) {
-                      final item = historyItems[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: () {
-                            _showAssessmentDetails(context, item);
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: _getStatusColor(item.status).withOpacity(0.1),
-                                          child: Icon(
-                                            _getStatusIcon(item.status),
-                                            color: _getStatusColor(item.status),
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Assessment #${item.id}',
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Text(
-                                              DateFormat('MMM dd, yyyy • hh:mm a').format(item.completedAt),
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: AppTheme.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    Chip(
-                                      label: Text(
-                                        item.status?.toUpperCase() ?? 'PENDING',
-                                        style: const TextStyle(fontSize: 10),
-                                      ),
-                                      backgroundColor: _getStatusColor(item.status).withOpacity(0.1),
-                                      labelStyle: TextStyle(
-                                        color: _getStatusColor(item.status),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    _buildTypeChip(item.primaryType, isPrimary: true),
-                                    const SizedBox(width: 8),
-                                    const Text('+'),
-                                    const SizedBox(width: 8),
-                                    _buildTypeChip(item.secondaryType, isPrimary: false),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Recommended Courses:',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: item.recommendedCourses.take(3).map((course) {
-                                    return Chip(
-                                      label: Text(
-                                        course,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      backgroundColor: const Color.fromARGB(255, 53, 88, 243).withOpacity(0.1),
-                                      labelStyle: TextStyle(
-                                        color: const Color.fromARGB(255, 53, 88, 243),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                                if (item.recommendedCourses.length > 3)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Text(
-                                      '+${item.recommendedCourses.length - 3} more',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!))
+              : _history.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildHistoryList(context),
     );
   }
 
-  Widget _buildStatCard(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history, size: 64, color: AppTheme.textSecondary),
+          const SizedBox(height: 16),
+          Text('No Assessment History',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppTheme.textSecondary)),
+          const SizedBox(height: 8),
+          Text('Approved or rejected assessments will appear here.',
+            style: TextStyle(color: AppTheme.textSecondary)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => context.go('/student/dashboard'),
+            icon: const Icon(Icons.quiz),
+            label: const Text('Go to Dashboard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryList(BuildContext context) {
+    final approvedCount = _history.where((h) => h['status'] == 'approved').length;
+    final rejectedCount = _history.where((h) => h['status'] == 'rejected').length;
+
+    return Column(
+      children: [
+        // Stats
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          color: AppTheme.backgroundWhite,
+          child: Row(
+            children: [
+              Expanded(child: _buildStatCard(context, 'Total Assessments',
+                _history.length.toString(), Icons.assessment, AppTheme.primaryPurple)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildStatCard(context, 'Approved',
+                approvedCount.toString(), Icons.check_circle, AppTheme.success)),
+              if (rejectedCount > 0) ...[
+                const SizedBox(width: 16),
+                Expanded(child: _buildStatCard(context, 'Rejected',
+                  rejectedCount.toString(), Icons.cancel, const Color(0xFFE53E3E))),
+              ],
+            ],
+          ),
+        ),
+        // List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: _history.length,
+            itemBuilder: (context, index) {
+              final item = _history[index];
+              final status = item['status'] as String;
+              final statusColor = status == 'approved' ? AppTheme.success : const Color(0xFFE53E3E);
+              final submittedAt = item['submittedAt'] != null
+                  ? DateFormat('MMM dd, yyyy • hh:mm a').format(DateTime.parse(item['submittedAt']))
+                  : 'Unknown date';
+              final courses = List<String>.from(item['courses'] ?? []);
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(children: [
+                            CircleAvatar(
+                              backgroundColor: statusColor.withOpacity(0.1),
+                              child: Icon(
+                                status == 'approved' ? Icons.check_circle : Icons.cancel,
+                                color: statusColor, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Assessment #${item['assessmentNum']}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                              Text(submittedAt,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+                            ]),
+                          ]),
+                          Chip(
+                            label: Text(status.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                            backgroundColor: statusColor.withOpacity(0.1),
+                            labelStyle: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // RIASEC types
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _typeChip(item['primaryType'] ?? '', isPrimary: true),
+                          if (item['secondaryType'] != null) ...[
+                            const Text('+', style: TextStyle(fontWeight: FontWeight.bold)),
+                            _typeChip(item['secondaryType'], isPrimary: false),
+                          ],
+                          if (item['tertiaryType'] != null && item['tertiaryType'].toString().isNotEmpty && item['tertiaryType'] != 'null') ...[
+                            const Text('+', style: TextStyle(fontWeight: FontWeight.bold)),
+                            _typeChip(item['tertiaryType'], isPrimary: false),
+                          ],
+                        ],
+                      ),
+                      if (courses.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text('Recommended Courses:',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: courses.map((course) => Chip(
+                            label: Text(course, style: const TextStyle(fontSize: 11)),
+                            backgroundColor: AppTheme.primaryPurple.withOpacity(0.1),
+                            labelStyle: TextStyle(color: AppTheme.primaryPurple),
+                          )).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon, Color color) {
     return Card(
       color: color.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(value,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+        ]),
       ),
     );
   }
 
-  Widget _buildTypeChip(RIASECType type, {required bool isPrimary}) {
+  Widget _typeChip(String type, {required bool isPrimary}) {
+    final color = AppTheme.riasecColor(type);
     return Chip(
-      label: Text(
-        '${type.code} - ${type.name}',
-        style: TextStyle(
-          fontWeight: isPrimary ? FontWeight.bold : FontWeight.normal,
-          fontSize: 12,
-        ),
-      ),
-      backgroundColor: isPrimary
-          ? const Color.fromARGB(255, 53, 88, 243).withOpacity(0.2)
-          : const Color.fromARGB(255, 15, 244, 80).withOpacity(0.2),
+      label: Text('$type - ${AppTheme.riasecName(type)}',
+        style: TextStyle(fontWeight: isPrimary ? FontWeight.bold : FontWeight.normal, fontSize: 12)),
+      backgroundColor: color.withOpacity(0.15),
+      labelStyle: TextStyle(color: color),
       avatar: CircleAvatar(
-        backgroundColor: isPrimary ? const Color.fromARGB(255, 53, 88, 243) : const Color.fromARGB(255, 15, 244, 80),
-        radius: 10,
-        child: Text(
-          type.code,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 10,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'approved':
-        return const Color.fromARGB(255, 15, 244, 80);
-      case 'rejected':
-        return const Color(0xFFE53E3E);
-      case 'pending':
-      default:
-        return const Color.fromARGB(255, 240, 155, 8);
-    }
-  }
-
-  IconData _getStatusIcon(String? status) {
-    switch (status) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'pending':
-      default:
-        return Icons.pending;
-    }
-  }
-
-  void _showAssessmentDetails(BuildContext context, AssessmentResult result) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.dividerColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Assessment Details',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildDetailRow('Date Completed', DateFormat('MMMM dd, yyyy • hh:mm a').format(result.completedAt)),
-              _buildDetailRow('Status', result.status?.toUpperCase() ?? 'PENDING'),
-              _buildDetailRow('Primary Type', '${result.primaryType.code} - ${result.primaryType.name}'),
-              _buildDetailRow('Secondary Type', '${result.secondaryType.code} - ${result.secondaryType.name}'),
-              const SizedBox(height: 16),
-              Text(
-                'Recommended Courses',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...result.recommendedCourses.take(3).map((course) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Icon(Icons.school, color: AppTheme.primaryPurple),
-                  title: Text(course),
-                ),
-              )),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.go('/student/results');
-                  },
-                  child: const Text('View Full Results'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+        backgroundColor: color,
+        child: Text(type, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
       ),
     );
   }

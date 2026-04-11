@@ -1,9 +1,10 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+import '../utils/api_config.dart';
 
 class ApiService {
-  // Change this to your server address
-  static const String baseUrl = 'http://localhost/riasec_app';
+  static final String baseUrl = ApiConfig.baseUrl;
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -93,10 +94,62 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  static Future<Map<String, dynamic>> cancelAssessment(int assessmentId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/cancel_assessment.php'),
+      headers: _headers,
+      body: jsonEncode({'assessmentId': assessmentId}),
+    );
+    return jsonDecode(response.body);
+  }
+
   static Future<Map<String, dynamic>> getResults(int assessmentId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/get_results.php?assessmentId=$assessmentId'),
       headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getResultsByStudentId(String studentId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_results.php?studentId=$studentId'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getStudentStatus(String studentId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_student_status.php?studentId=$studentId'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getHistory(String studentId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_history.php?studentId=$studentId'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> approveRejectAssessment({
+    required int assessmentId,
+    required String action,
+    required int counselorId,
+    required String notes,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/approve_reject_assessment.php'),
+      headers: _headers,
+      body: jsonEncode({
+        'assessmentId': assessmentId,
+        'action': action,
+        'counselorId': counselorId,
+        'notes': notes,
+      }),
     );
     return jsonDecode(response.body);
   }
@@ -163,8 +216,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> getDashboardStats(
-      String filter) async {
+  static Future<Map<String, dynamic>> getDashboardStats(String filter) async {
     final response = await http.get(
       Uri.parse('$baseUrl/get_dashboard_stats.php?filter=$filter'),
       headers: _headers,

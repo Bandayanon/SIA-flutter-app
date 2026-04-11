@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -144,18 +145,31 @@ class _StudentRecordsScreenState extends State<StudentRecordsScreen> {
     return '$header\n${rows.join('\n')}';
   }
 
-  void _downloadCsv() {
-    final csv = _generateCsv();
-    // In a web app, trigger download
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('CSV ready — ${_records.length} records exported.'),
-        action: SnackBarAction(label: 'OK', onPressed: () {}),
-      ),
-    );
-    // TODO: On web, use dart:html to trigger download.
-    // On desktop, use path_provider + file writing.
-    debugPrint(csv); // For now prints to debug console
+  Future<void> _downloadCsv() async {
+    try {
+      final csv = _generateCsv();
+      final uri = Uri.parse('data:text/csv;charset=utf-8,${Uri.encodeComponent(csv)}');
+      
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('CSV Download Started — ${_records.length} records.'),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
+      } else {
+        throw 'Could not launch download';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppTheme.error),
+        );
+      }
+    }
   }
 
   Color _statusColor(String? status) {
@@ -397,7 +411,7 @@ class _StudentRecordsScreenState extends State<StudentRecordsScreen> {
                                       const SizedBox(height: 8),
                                       Row(
                                         children: ['R','I','A','S','E','C'].map((t) {
-                                          final pct = (scores[t] as num?)?.toDouble() ?? 0.0;
+                                          final pct = double.tryParse((scores[t] ?? "0").toString()) ?? 0.0;
                                           return Expanded(
                                             child: Column(
                                               children: [

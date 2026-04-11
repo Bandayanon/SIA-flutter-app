@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../theme/app_theme.dart';
+
 import '../../services/api_service.dart';
 import '../../services/session_manager.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/student_sidebar.dart';
 
 class StudentDetailsForm extends StatefulWidget {
@@ -26,6 +27,7 @@ class _StudentDetailsFormState extends State<StudentDetailsForm> {
   String?   _strand;
   String?   _gradeLevel;
   bool      _isSubmitting = false;
+  bool      _isChecking   = true; // blocks form until status check done
 
   final _genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
   final _strandOptions = [
@@ -39,6 +41,46 @@ class _StudentDetailsFormState extends State<StudentDetailsForm> {
     'Not Applicable',
   ];
   final _gradeLevelOptions = ['Grade 11', 'Grade 12'];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAllowed();
+  }
+
+  // Block access if student already has a pending or approved assessment.
+  // Only rejected students (or first-timers) are allowed through.
+  Future<void> _checkIfAllowed() async {
+    try {
+      final data = await ApiService.getStudentStatus(_session.studentId!);
+      if (data['status'] == 'success') {
+        final asmStatus = data['assessmentStatus'] as String?;
+        if (asmStatus == 'pending_review' || asmStatus == 'approved') {
+          // Store assessmentId in session if available
+          if (data['assessmentId'] != null) {
+            _session.currentAssessmentId =
+                int.tryParse(data['assessmentId'].toString());
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  asmStatus == 'pending_review'
+                      ? 'Your assessment is awaiting counselor review.'
+                      : 'Your assessment has already been completed.',
+                ),
+                backgroundColor: AppTheme.primaryPurple,
+              ),
+            );
+            context.go('/student/dashboard');
+          }
+        }
+      }
+    } catch (_) {
+      // If check fails, allow through — better than blocking incorrectly
+    }
+    if (mounted) setState(() => _isChecking = false);
+  }
 
   @override
   void dispose() {
@@ -94,7 +136,7 @@ class _StudentDetailsFormState extends State<StudentDetailsForm> {
       });
 
       if (piData['status'] != 'success') throw Exception(piData['message']);
-      _session.currentPiId = piData['piId'];
+      _session.currentPiId = int.tryParse(piData['piId'].toString());
 
       // Step 2: Start assessment
       final asmData = await ApiService.startAssessment(
@@ -102,8 +144,19 @@ class _StudentDetailsFormState extends State<StudentDetailsForm> {
         _session.currentPiId!,
       );
 
+      if (asmData['status'] == 'resume') {
+        _session.currentAssessmentId = int.tryParse(asmData['assessmentId'].toString());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Resuming your previous assessment session...')),
+          );
+          context.go('/student/assessment');
+        }
+        return;
+      }
+
       if (asmData['status'] != 'success') throw Exception(asmData['message']);
-      _session.currentAssessmentId = asmData['assessmentId'];
+      _session.currentAssessmentId = int.tryParse(asmData['assessmentId'].toString());
 
       if (mounted) context.go('/student/assessment-instructions');
     } catch (e) {
@@ -119,6 +172,23 @@ class _StudentDetailsFormState extends State<StudentDetailsForm> {
 
   @override
   Widget build(BuildContext context) {
+    // Synchronous Security Check: Immediately block if SessionManager says locked
+    final status = _session.assessmentStatus;
+    if (status == 'pending_review' || status == 'approved') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/student/dashboard');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // Block form entirely until server status check is done
+    if (_isChecking) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Personal Information')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       drawer: StudentSidebar(currentRoute: '/student/assessment'),
       appBar: AppBar(

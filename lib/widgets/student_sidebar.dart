@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../services/session_manager.dart';
 
 class StudentSidebar extends StatelessWidget {
   final String currentRoute;
@@ -12,6 +13,10 @@ class StudentSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final session = SessionManager();
+    final status = session.assessmentStatus;
+    final isLocked = status == 'pending_review' || status == 'approved';
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -59,9 +64,10 @@ class StudentSidebar extends StatelessWidget {
             icon: Icons.quiz,
             title: 'RIASEC Assessment',
             route: '/student/student-details',
-            isSelected: currentRoute == '/student/assessment' || 
-                       currentRoute == '/student/student-details' ||
-                       currentRoute == '/student/assessment-instructions',
+            isSelected: currentRoute == '/student/assessment' ||
+                      currentRoute == '/student/student-details' ||
+                      currentRoute == '/student/assessment-instructions',
+            isEnabled: !isLocked,
           ),
           _buildNavItem(
             context,
@@ -109,27 +115,35 @@ class StudentSidebar extends StatelessWidget {
     required String title,
     required String route,
     required bool isSelected,
+    bool isEnabled = true,
   }) {
+    final color = isEnabled 
+        ? (isSelected ? AppTheme.primaryPurple : AppTheme.textPrimary)
+        : Colors.grey.shade400;
+
     return ListTile(
+      enabled: isEnabled,
       leading: Icon(
-        icon,
-        color: isSelected ? AppTheme.primaryPurple : AppTheme.textSecondary,
+        isEnabled && isSelected ? icon : icon,
+        color: isEnabled 
+            ? (isSelected ? AppTheme.primaryPurple : AppTheme.textSecondary)
+            : Colors.grey.shade400,
       ),
       title: Text(
-        title,
+        !isEnabled ? '$title (Locked)' : title,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          color: isSelected ? AppTheme.primaryPurple : AppTheme.textPrimary,
+          color: color,
         ),
       ),
       selected: isSelected,
       selectedTileColor: AppTheme.primaryPurple.withOpacity(0.1),
-      onTap: () {
+      onTap: isEnabled ? () {
         Navigator.pop(context); // Close drawer
         if (currentRoute != route) {
           context.go(route);
         }
-      },
+      } : null,
     );
   }
 }

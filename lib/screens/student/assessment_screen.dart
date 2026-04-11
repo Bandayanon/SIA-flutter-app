@@ -1,8 +1,11 @@
+import 'dart:convert';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../theme/app_theme.dart';
+
 import '../../services/api_service.dart';
 import '../../services/session_manager.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/student_sidebar.dart';
 
 class AssessmentScreen extends StatefulWidget {
@@ -36,6 +39,36 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     super.initState();
     _startTime = DateTime.now();
     _loadQuestions();
+    _restoreProgress();
+  }
+
+  void _restoreProgress() {
+    final storage = html.window.localStorage;
+    final savedAnswers = storage['riasec_answers'];
+    final savedIndex = storage['riasec_currentIndex'];
+
+    if (savedAnswers != null) {
+      final Map<String, dynamic> decoded = jsonDecode(savedAnswers);
+      setState(() {
+        decoded.forEach((key, value) {
+          _answers[int.parse(key)] = value;
+        });
+      });
+    }
+
+    if (savedIndex != null) {
+      setState(() {
+        _currentIndex = int.tryParse(savedIndex) ?? 0;
+      });
+    }
+  }
+
+  void _saveProgress() {
+    final storage = html.window.localStorage;
+    final Map<String, int> encoded = {};
+    _answers.forEach((key, value) => encoded[key.toString()] = value);
+    storage['riasec_answers'] = jsonEncode(encoded);
+    storage['riasec_currentIndex'] = _currentIndex.toString();
   }
 
   Future<void> _loadQuestions() async {
@@ -68,12 +101,13 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   void _selectScore(int score) {
-    final questionId = _questions[_currentIndex]['id'] as int;
+    final questionId = int.tryParse(_questions[_currentIndex]['id'].toString()) ?? 0;
     setState(() => _answers[questionId] = score);
+    _saveProgress();
   }
 
   void _next() {
-    final questionId = _questions[_currentIndex]['id'] as int;
+    final questionId = int.tryParse(_questions[_currentIndex]['id'].toString()) ?? 0;
     if (!_answers.containsKey(questionId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an answer before continuing.')),
@@ -105,11 +139,19 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             child: const Text('Review Answers'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _submitAssessment();
-            },
-            child: const Text('Submit'),
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    Navigator.pop(ctx);
+                    _submitAssessment();
+                  },
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Submit'),
           ),
         ],
       ),
@@ -131,7 +173,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       );
 
       if (data['status'] == 'success') {
-        _session.currentResultId = data['resultId'];
+        _session.currentResultId = int.tryParse(data['resultId'].toString());
         if (mounted) {
           showDialog(
             context: context,
@@ -148,6 +190,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
+                    html.window.localStorage.remove('riasec_answers');
+                    html.window.localStorage.remove('riasec_currentIndex');
                     context.go('/student/dashboard');
                   },
                   child: const Text('Return to Dashboard'),
@@ -198,27 +242,24 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     }
 
     final current = _questions[_currentIndex];
-    final questionId = current['id'] as int;
+    final questionId = int.tryParse(current['id'].toString()) ?? 0;
     final progress = (_currentIndex + 1) / _questions.length;
     final selectedScore = _answers[questionId];
 
-    return Scaffold(
-      drawer: StudentSidebar(currentRoute: '/student/assessment'),
-      appBar: AppBar(
-        title: const Text('RIASEC Assessment'),
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _showExitDialog();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('RIASEC Assessment'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
             onPressed: () => _showExitDialog(),
           ),
-        ],
-      ),
+        ),
       body: Column(
         children: [
           // Progress
@@ -267,22 +308,6 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.riasecColor(current['category']).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      AppTheme.riasecName(current['category']),
-                      style: TextStyle(
-                        color: AppTheme.riasecColor(current['category']),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   Text(
                     current['question'],
@@ -295,7 +320,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
                   // Score options
                   ..._scoreOptions.map((option) {
-                    final value = option['value'] as int;
+                    final value = int.tryParse(option['value'].toString()) ?? 0;
                     final isSelected = selectedScore == value;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -395,6 +420,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -412,11 +438,16 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              context.go('/student/dashboard');
+              setState(() => _isLoading = true); // show locking screen layer
+              if (_session.currentAssessmentId != null) {
+                await ApiService.cancelAssessment(_session.currentAssessmentId!);
+                _session.currentAssessmentId = null;
+              }
+              if (mounted) context.go('/student/dashboard');
             },
-            child: const Text('Leave'),
+            child: const Text('Leave & Cancel'),
           ),
         ],
       ),

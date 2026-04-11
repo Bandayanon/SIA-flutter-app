@@ -75,10 +75,13 @@ class _CounselorDashboardState extends State<CounselorDashboard> {
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppTheme.primaryPurple.withOpacity(0.15),
-                        child: const Icon(Icons.psychology, size: 30, color: AppTheme.primaryPurple),
+                      GestureDetector(
+                        onLongPress: () => _showAdminPinDialog(context),
+                        child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: AppTheme.primaryPurple.withOpacity(0.15),
+                          child: const Icon(Icons.psychology, size: 30, color: AppTheme.primaryPurple),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -210,6 +213,45 @@ class _CounselorDashboardState extends State<CounselorDashboard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAdminPinDialog(BuildContext context) {
+    final TextEditingController _pinController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Admin Access'),
+        content: TextField(
+          controller: _pinController,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 7,
+          decoration: const InputDecoration(
+            labelText: 'Enter 7-Digit PIN',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_pinController.text.trim() == '1234567') {
+                Navigator.pop(ctx);
+                context.push('/admin/dashboard');
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid PIN')),
+                );
+              }
+            },
+            child: const Text('Verify'),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,62 @@
+services:
+  frontend:
+    image: wasabilazybumai/riasec-frontend:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: riasec_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+      - redis
+    restart: unless-stopped
+
+  backend:
+    image: wasabilazybumai/riasec-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: riasec_backend
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/var/www/html
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: riasec_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: riasec_db
+      MYSQL_USER: riasec_user
+      MYSQL_PASSWORD: riasec_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./assets/riasec_db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: riasec_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    name: riasec_redis_data
+  db_data:
+    name: riasec_db_data

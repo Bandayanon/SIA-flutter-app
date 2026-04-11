@@ -1,25 +1,50 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../screens/shared/login_screen.dart';
-import '../screens/student/student_dashboard.dart';
-import '../screens/student/student_details_form.dart';
-import '../screens/student/assessment_instructions.dart';
-import '../screens/student/assessment_screen.dart';
-import '../screens/student/results_screen.dart';
-import '../screens/student/history_screen.dart';
+
+import '../models/riasec_models.dart';
 import '../screens/guidance_counselor/counselor_dashboard.dart';
 import '../screens/guidance_counselor/monitoring_screen.dart';
 import '../screens/guidance_counselor/pending_approvals_screen.dart';
+import '../screens/guidance_counselor/student_feedback_screen.dart';
 import '../screens/guidance_counselor/student_records_screen.dart';
-import '../screens/guidance_counselor/ai_feedback_screen.dart';
-import '../models/riasec_models.dart';
+import '../screens/shared/login_screen.dart';
+import '../screens/student/assessment_instructions.dart';
+import '../screens/student/assessment_screen.dart';
+import '../screens/student/history_screen.dart';
+import '../screens/student/results_screen.dart';
+import '../screens/student/student_dashboard.dart';
+import '../screens/student/student_details_form.dart';
+import '../screens/student/student_registration_screen.dart';
+import '../screens/admin/admin_dashboard.dart';
+import '../services/session_manager.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) {
+    final session = SessionManager();
+    final status = session.assessmentStatus;
+    
+    // Check if the user is trying to access assessment-related student routes
+    final path = state.uri.path.replaceAll('_', '-'); // Handle potential underscore typos
+    final isAssessmentRoute = path.startsWith('/student/assessment') ||
+                              path.contains('student-details') ||
+                              path.contains('student_details') ||
+                              path == '/student/assessment-instructions';
+    
+    // Lockdown logic: check LocalStorage status immediately
+    if (isAssessmentRoute && (status == 'pending_review' || status == 'approved')) {
+      return '/student/dashboard';
+    }
+    
+    return null; // No redirection needed
+  },
   routes: [
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/register',
+      builder: (context, state) => const StudentRegistrationScreen(),
     ),
     // Student Routes
     GoRoute(
@@ -70,8 +95,13 @@ final GoRouter appRouter = GoRouter(
       path: '/guidance-counselor/ai-feedback',
       builder: (context, state) {
         final extraData = state.extra as Map<String, dynamic>?;
-        return AIFeedbackScreen(extraData: extraData);
+        return StudentFeedbackScreen(extraData: extraData);
       },
+    ),
+    // Admin Routes
+    GoRoute(
+      path: '/admin/dashboard',
+      builder: (context, state) => const AdminDashboard(),
     ),
   ],
 );

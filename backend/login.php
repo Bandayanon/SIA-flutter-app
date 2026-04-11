@@ -1,0 +1,122 @@
+<?php
+@header("Content-Type: application/json");
+@header("Access-Control-Allow-Origin: *");
+@header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+@header("Access-Control-Allow-Headers: Content-Type");
+
+// Disable default PHP 8.1+ mysqli exceptions (prevent silent crashes)
+@mysqli_report(MYSQLI_REPORT_OFF);
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+try {
+    include 'db_connect.php';
+
+    $data     = json_decode(file_get_contents("php://input"), true);
+    $role     = $data['role']     ?? '';
+    $password = $data['password'] ?? '';
+
+    if (empty($role) || empty($password)) {
+        die(json_encode(["status" => "error", "message" => "Fields cannot be empty"]));
+    }
+
+    if ($role === 'student' || $role === 'student_role') {
+        $student_id = $data['student_id'] ?? '';
+        if (empty($student_id)) {
+            die(json_encode(["status" => "error", "message" => "Student ID is required"]));
+        }
+        
+        $stmt = $conn->prepare("SELECT StudentID, FirstName, LastName, Password, IsBlocked FROM students WHERE StudentID = ? LIMIT 1");
+        if (!$stmt) {
+            die(json_encode(["status" => "error", "message" => "Database Search Error (S1). Please check if 'students' table exists."]));
+        }
+        
+        $stmt->bind_param("s", $student_id);
+        if (!$stmt->execute()) {
+            die(json_encode(["status" => "error", "message" => "Database Execution Error (S2)"]));
+        }
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+            if (isset($user['IsBlocked']) && (int)$user['IsBlocked'] === 1) {
+                die(json_encode(["status" => "error", "message" => "Account has been suspended by an Admin."]));
+            }
+            if (password_verify($password, $user['Password'])) {
+                // Check for latest assessment status
+                $assessmentStatus = null;
+                $statusQuery = $conn->prepare("SELECT Status FROM assessments WHERE StudentID = ? ORDER BY CreatedAt DESC LIMIT 1");
+                if ($statusQuery) {
+                    $statusQuery->bind_param("s", $student_id);
+                    $statusQuery->execute();
+                    $statusRow = $statusQuery->get_result()->fetch_assoc();
+                    $assessmentStatus = $statusRow['Status'] ?? null;
+                }
+
+                echo json_encode([
+                    "status"           => "success",
+                    "role"             => "student",
+                    "studentId"        => $user['StudentID'],
+                    "firstName"        => $user['FirstName'],
+                    "lastName"         => $user['LastName'],
+                    "assessmentStatus" => $assessmentStatus
+                ]);
+            } else {
+                echo json_encode(["status" => "error", "message" => "Invalid credentials (password mismatch)"]);
+            }
+        } else {
+            echo json_encode(["status" => "error", "message" => "Invalid credentials (user not found)"]);
+        }
+
+    } elseif ($role === 'guidance_counselor') {
+        $email = $data['email'] ?? '';
+        if (empty($email)) {
+            die(json_encode(["status" => "error", "message" => "Email is required"]));
+        }
+        
+        $stmt = $conn->prepare("SELECT CounselorID, FirstName, LastName, Password, IsBlocked FROM counselors WHERE Email = ? LIMIT 1");
+        if (!$stmt) {
+           die(json_encode(["status" => "error", "message" => "Database Search Error (G1). Please check if 'counselors' table exists."]));
+        }
+        
+        $stmt->bind_param("s", $email);
+        if (!$stmt->execute()) {
+            die(json_encode(["status" => "error", "message" => "Database Execution Error (G2)"]));
+        }
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+            if (isset($user['IsBlocked']) && (int)$user['IsBlocked'] === 1) {
+                die(json_encode(["status" => "error", "message" => "Counselor account suspended by Admin."]));
+            }
+            if (password_verify($password, $user['Password'])) {
+                echo json_encode([
+                    "status"      => "success",
+                    "role"        => "guidance_counselor",
+                    "counselorId" => $user['CounselorID'],
+                    "firstName"   => $user['FirstName'],
+                    "lastName"    => $user['LastName']
+                ]);
+            } else {
+                echo json_encode(["status" => "error", "message" => "Invalid credentials (password mismatch)"]);
+            }
+        } else {
+            echo json_encode(["status" => "error", "message" => "Invalid credentials (counselor not found)"]);
+        }
+    } else {
+        echo json_encode(["status" => "error", "message" => "Invalid role selected."]);
+    }
+    
+    if (isset($conn)) { @$conn->close(); }
+
+} catch (Exception $e) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "PHP Runtime Error: " . $e->getMessage()
+    ]);
+}
+?>
