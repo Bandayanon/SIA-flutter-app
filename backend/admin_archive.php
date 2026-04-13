@@ -10,12 +10,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit();
 include 'db_connect.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
+$adminId = $_GET['adminId'] ?? null;
+
+if ($method === 'GET' && isset($_GET['listOnly'])) {
+    if (!$adminId) { echo json_encode(["status" => "error", "message" => "Unauthorized."]); exit(); }
+
+    $res = $conn->query("
+        SELECT a.AssessmentID, a.StudentID, s.FirstName, s.LastName,
+               pi.Strand, pi.GradeLevel,
+               r.Result_Code1, r.Result_Code2, r.Result_Code3,
+               a.Status, a.SubmittedAt
+        FROM assessments a
+        JOIN students s ON s.StudentID = a.StudentID
+        JOIN personal_information pi ON pi.PI_ID = s.PI_ID
+        LEFT JOIN results r ON r.AssessmentID = a.AssessmentID
+        WHERE a.Status != 'in_progress'
+        ORDER BY a.SubmittedAt DESC
+    ");
+
+    $records = [];
+    while ($row = $res->fetch_assoc()) { $records[] = $row; }
+    echo json_encode(["status" => "success", "records" => $records]);
+    exit();
+}
 
 if ($method === 'GET' && isset($_GET['exportCsv'])) {
-    $adminId = $_GET['adminId'] ?? null;
-    if (!$adminId) {
-        die("Unauthorized Citadel access.");
-    }
     
     // We export the completed assessments for Archiving / Analysis
     $res = $conn->query("

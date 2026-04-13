@@ -57,17 +57,26 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (data['status'] == 'success') {
         final session = SessionManager();
-        session.setCounselor({
-          'counselorId': data['counselorId'],
-          'firstName':   data['firstName'],
-          'lastName':    data['lastName'],
-          'role':        data['role'],
-        });
-        
-        if (data['role'] == 'super_admin') {
-            context.go('/admin/dashboard');
+        final role = data['role'] ?? '';
+
+        if (role == 'super_admin' || role == 'admin') {
+          session.setAdmin({
+            'adminId':   data['adminId'],
+            'firstName': data['firstName'],
+            'lastName':  data['lastName'],
+            'role':      role,
+          });
+          if (!mounted) return;
+          context.go('/admin/dashboard');
         } else {
-            context.go('/guidance-counselor/dashboard');
+          session.setCounselor({
+            'counselorId': data['counselorId'],
+            'firstName':   data['firstName'],
+            'lastName':    data['lastName'],
+            'role':        role,
+          });
+          if (!mounted) return;
+          context.go('/guidance-counselor/dashboard');
         }
       } else {
         setState(() => _errorMessage = data['message'] ?? 'Invalid OTP code.');
