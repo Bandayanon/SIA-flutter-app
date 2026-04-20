@@ -57,25 +57,22 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (data['status'] == 'success') {
         final session = SessionManager();
-        final role = data['role'] ?? '';
-
-        if (role == 'super_admin' || role == 'admin') {
+        
+        if (data['role'] == 'super_admin' || data['role'] == 'admin') {
           session.setAdmin({
             'adminId':   data['adminId'],
             'firstName': data['firstName'],
             'lastName':  data['lastName'],
-            'role':      role,
+            'role':      data['role'],
           });
-          if (!mounted) return;
           context.go('/admin/dashboard');
         } else {
+          // Revert to Counselor (Legacy or fallback)
           session.setCounselor({
             'counselorId': data['counselorId'],
             'firstName':   data['firstName'],
             'lastName':    data['lastName'],
-            'role':        role,
           });
-          if (!mounted) return;
           context.go('/guidance-counselor/dashboard');
         }
       } else {

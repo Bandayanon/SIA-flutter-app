@@ -30,7 +30,7 @@ try {
         throw new Exception("ID Number, Email, and Password are all required.");
     }
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL, FILTER_FLAG_EMAIL_UNICODE)) {
         throw new Exception("Please provide a valid email address.");
     }
 

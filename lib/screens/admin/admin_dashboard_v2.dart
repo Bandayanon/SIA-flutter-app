@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/session_manager.dart';
 import 'admin_monitoring.dart';
-import 'admin_registration_tab.dart';
-import 'admin_user_control_tab.dart';
-import 'admin_archive_tab.dart';
-import 'admin_notifications_tab.dart';
+import 'admin_registration_v2.dart';
+import 'admin_user_manage_v2.dart';
+import 'admin_archive_v2.dart';
+import 'admin_notifications.dart';
 
 class AdminDashboardV2 extends StatefulWidget {
   const AdminDashboardV2({super.key});
@@ -16,217 +16,129 @@ class AdminDashboardV2 extends StatefulWidget {
 }
 
 class _AdminDashboardV2State extends State<AdminDashboardV2> {
-  int _selectedIndex = 0;
   final _session = SessionManager();
-
-  static const _navItems = [
-    _NavItem(Icons.dashboard_outlined,       Icons.dashboard,          'Monitoring'),
-    _NavItem(Icons.person_add_outlined,      Icons.person_add,         'Registration'),
-    _NavItem(Icons.manage_accounts_outlined, Icons.manage_accounts,    'User Control'),
-    _NavItem(Icons.archive_outlined,         Icons.archive,            'Archiving'),
-    _NavItem(Icons.notifications_outlined,   Icons.notifications,      'Notifications'),
-  ];
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final firstName  = _session.adminFirstName ?? 'Admin';
-    final isSuperAdmin = _session.adminRole == 'super_admin';
+    // Determine admin name for display
+    final String adminName = _session.counselorFirstName ?? 'Admin';
+    final bool isSuper = _session.roleId == 4;
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSuper ? AppTheme.primaryYellow : AppTheme.lilac,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                isSuper ? 'SUPER ADMIN' : 'ADMIN',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Citadel Command Center', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        backgroundColor: AppTheme.primaryPurple,
+        elevation: 0,
+        actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Text(
+                'Welcome, $adminName',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.power_settings_new),
+            tooltip: 'Logout',
+            onPressed: () {
+              _session.logout();
+              context.go('/login');
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Row(
         children: [
-          // ── Sidebar ───────────────────────────────────────
           Container(
-            width: 220,
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryPurple,
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(5, 0),
+                ),
+              ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Logo / Brand ─────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.15))),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.shield, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text('Citadel',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-                    ]),
-                    const SizedBox(height: 6),
-                    Text('Administration Panel',
-                        style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, letterSpacing: 0.5)),
-                  ]),
+            width: 240,
+            child: NavigationRail(
+              backgroundColor: Colors.transparent,
+              extended: true,
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (int index) {
+                setState(() => _selectedIndex = index);
+              },
+              unselectedIconTheme: const IconThemeData(color: AppTheme.textSecondary),
+              selectedIconTheme: const IconThemeData(color: AppTheme.primaryPurple, size: 28),
+              unselectedLabelTextStyle: const TextStyle(color: AppTheme.textSecondary),
+              selectedLabelTextStyle: const TextStyle(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold),
+              indicatorColor: AppTheme.primaryPurple.withOpacity(0.1),
+              destinations: [
+                const NavigationRailDestination(
+                  icon: Icon(Icons.analytics_outlined), 
+                  selectedIcon: Icon(Icons.analytics),
+                  label: Text('Live Monitoring')
                 ),
-
-                // ── Nav Items ────────────────────────────────
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Column(
-                      children: List.generate(_navItems.length, (i) {
-                        final item = _navItems[i];
-                        final isSelected = _selectedIndex == i;
-                        return _buildNavTile(
-                          icon: isSelected ? item.activeIcon : item.icon,
-                          label: item.label,
-                          isSelected: isSelected,
-                          onTap: () => setState(() => _selectedIndex = i),
-                        );
-                      }),
-                    ),
-                  ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.person_add_outlined), 
+                  selectedIcon: Icon(Icons.person_add),
+                  label: Text('Registration')
                 ),
-
-                // ── User info + logout ────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: Colors.white.withOpacity(0.15))),
-                  ),
-                  child: Row(children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      radius: 18,
-                      child: Text(
-                        firstName[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(firstName,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-                            overflow: TextOverflow.ellipsis),
-                        Text(isSuperAdmin ? 'Super Admin' : 'Admin',
-                            style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 11)),
-                      ]),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.logout, color: Colors.white70, size: 18),
-                      tooltip: 'Logout',
-                      onPressed: () {
-                        _session.logout();
-                        context.go('/login');
-                      },
-                    ),
-                  ]),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.manage_accounts_outlined), 
+                  selectedIcon: Icon(Icons.manage_accounts),
+                  label: Text('User Control')
+                ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.archive_outlined), 
+                  selectedIcon: Icon(Icons.archive),
+                  label: Text('Archiving')
+                ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.notifications_active_outlined), 
+                  selectedIcon: Icon(Icons.notifications_active),
+                  label: Text('Notifications')
                 ),
               ],
             ),
           ),
-
-          // ── Main content ──────────────────────────────────
           Expanded(
-            child: Column(
-              children: [
-                // ── Top bar ────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  color: Colors.white,
-                  child: Row(
-                    children: [
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(_navItems[_selectedIndex].label,
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-                        Text('RIASEC Career Assessment System  •  Administration',
-                            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                      ]),
-                      const Spacer(),
-                      if (isSuperAdmin)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryYellow.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppTheme.primaryYellow.withOpacity(0.4)),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.star, color: AppTheme.primaryYellow, size: 14),
-                            const SizedBox(width: 4),
-                            Text('Super Admin', style: TextStyle(color: Colors.amber.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ]),
-                        ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-
-                // ── Page content ───────────────────────────
-                Expanded(
-                  child: IndexedStack(
-                    index: _selectedIndex,
-                    children: const [
-                      AdminMonitoring(),
-                      AdminRegistrationTab(),
-                      AdminUserControlTab(),
-                      AdminArchiveTab(),
-                      AdminNotificationsTab(),
-                    ],
-                  ),
-                ),
-              ],
+            child: Container(
+              color: AppTheme.backgroundLight,
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: const [
+                  AdminMonitoring(),
+                  AdminRegistrationV2(),
+                  AdminUserManageV2(),
+                  AdminArchiveV2(),
+                  AdminNotifications(),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildNavTile({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.white60, size: 20),
-              const SizedBox(width: 12),
-              Text(label,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.white60,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 14,
-                  )),
-              if (isSelected) ...[
-                const Spacer(),
-                Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
-              ],
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  const _NavItem(this.icon, this.activeIcon, this.label);
 }

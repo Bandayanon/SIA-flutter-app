@@ -45,68 +45,68 @@ class _AdminMonitoringState extends State<AdminMonitoring> {
         Uri.parse('${ApiConfig.baseUrl}/get_live_sessions.php'),
       );
       
-      if (statsRes.statusCode == 200 && liveRes.statusCode == 200) {
-        final statsData = jsonDecode(statsRes.body);
-        final liveData = jsonDecode(liveRes.body);
-        
-        if (mounted) {
-          setState(() {
-            _stats = statsData['stats'];
-            _liveSessions = liveData['activeSessions'];
-            _isLoading = false;
-          });
+        if (statsRes.statusCode == 200 && liveRes.statusCode == 200) {
+          final statsData = jsonDecode(statsRes.body);
+          final liveData = jsonDecode(liveRes.body);
+          
+          if (mounted) {
+            setState(() {
+              _stats = statsData['data']; // Changed from 'stats' to 'data'
+              _liveSessions = liveData['activeSessions'];
+              _isLoading = false;
+            });
+          }
         }
+      } catch (e) {
+        if (mounted) setState(() => _isLoading = false);
       }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(height: 12),
-              Text(title, style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
-            ],
+  
+    Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+      return Expanded(
+        child: Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 40, color: color),
+                const SizedBox(height: 12),
+                Text(title, style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading && _stats == null) {
-      return const Center(child: CircularProgressIndicator());
+      );
     }
-
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Citadel Overview', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              _buildStatCard('Active Sessions', '${_stats?['activeSessions'] ?? 0}', Icons.wifi_tethering, Colors.green),
-              const SizedBox(width: 16),
-              _buildStatCard('Completed Assessments', '${_stats?['completedAssessments'] ?? 0}', Icons.check_circle_outline, AppTheme.primaryPurple),
-              const SizedBox(width: 16),
-              _buildStatCard('Total Students', '${_stats?['totalStudents'] ?? 0}', Icons.people, Colors.blue),
-              const SizedBox(width: 16),
-              _buildStatCard('Active Counselors', '${_stats?['totalCounselors'] ?? 0}', Icons.psychology, Colors.orange),
-            ],
-          ),
+  
+    @override
+    Widget build(BuildContext context) {
+      if (_isLoading && _stats == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
+  
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Citadel Overview', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                _buildStatCard('Active Sessions', '${_stats?['active_sessions'] ?? 0}', Icons.wifi_tethering, Colors.green),
+                const SizedBox(width: 16),
+                _buildStatCard('Completed Assessments', '${_stats?['completed_assessments'] ?? 0}', Icons.check_circle_outline, AppTheme.primaryPurple),
+                const SizedBox(width: 16),
+                _buildStatCard('Total Students', '${_stats?['total_students'] ?? 0}', Icons.people, Colors.blue),
+                const SizedBox(width: 16),
+                _buildStatCard('Active Counselors', '${_stats?['total_counselors'] ?? 0}', Icons.psychology, Colors.orange),
+              ],
+            ),
           const SizedBox(height: 32),
           Text('Live Student Progress', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),

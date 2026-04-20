@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
+import '../services/session_manager.dart';
 
 class CounselorSidebar extends StatelessWidget {
   final String currentRoute;
@@ -25,13 +26,21 @@ class CounselorSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: const Icon(
-                    Icons.psychology,
-                    color: Colors.white,
-                    size: 30,
+                InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile picture settings coming soon!')),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(30),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(
+                      Icons.psychology,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -100,6 +109,7 @@ class CounselorSidebar extends StatelessWidget {
               style: TextStyle(color: const Color(0xFFE53E3E)),
             ),
             onTap: () {
+              SessionManager().logout();
               context.go('/login');
             },
           ),

@@ -223,4 +223,42 @@ class ApiService {
     );
     return jsonDecode(response.body);
   }
+
+  // ── CITADEL V2 ADMIN ──────────────────────────────────
+  static Future<Map<String, dynamic>> getAdminStats() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_admin_stats.php'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getAdminUsers(int adminId, int roleId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin_users_v2.php?adminId=$adminId&roleId=$roleId'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> manageAdminUser(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin_users_v2.php'),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getAdminLogs(int adminId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_admin_logs.php?adminId=$adminId'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  static String getExportUrl(int adminId) {
+    return '$baseUrl/admin_archive.php?exportCsv=true&adminId=$adminId';
+  }
 }

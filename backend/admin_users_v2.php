@@ -11,6 +11,13 @@ include 'db_connect.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// helper for logging
+function logActivity($conn, $adminId, $action, $targetType, $targetId = null, $details = null) {
+    $stmt = $conn->prepare("INSERT INTO system_logs (AdminID, Action, TargetType, TargetID, Details) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("issis", $adminId, $action, $targetType, $targetId, $details);
+    $stmt->execute();
+}
+
 // Fetch All Users
 if ($method === 'GET') {
     // We expect the frontend to pass the AdminID and RoleID as query params for tracking
@@ -40,10 +47,8 @@ if ($method === 'GET') {
         $response['counselors'][] = $row;
     }
     
-    $res = $conn->query("SELECT StudentID as id, FirstName as firstName, LastName as lastName, Email as email FROM students");
+    $res = $conn->query("SELECT StudentID as id, FirstName as firstName, LastName as lastName, Email as email, IsBlocked as isBlocked FROM students");
     while ($row = $res->fetch_assoc()) {
-        // We'll mimic IsBlocked for students by checking if they are allowed (assume 0 for now)
-        $row['isBlocked'] = 0; 
         $response['students'][] = $row;
     }
     
@@ -79,22 +84,46 @@ if ($method === 'POST') {
             $stmt->bind_param("ssss", $fn, $ln, $email, $password);
             
         } elseif ($targetType === 'student') {
-            $strand = $data['strand'] ?? 'STEM';
-            $grade = $data['gradeLevel'] ?? 'Grade 11';
-            $sex = $data['sex'] ?? 'Male';
-            $age = $data['age'] ?? 16;
+            $studentId = $data['studentId'] ?? null;
+            if (!$studentId) die(json_encode(["status" => "error", "message" => "Student ID is required."]));
             
-            // Requires PI insertion first
-            $pi = $conn->prepare("INSERT INTO personal_information (FirstName, LastName, Strand, GradeLevel, Sex, Age) VALUES (?, ?, ?, ?, ?, ?)");
-            $pi->bind_param("sssssi", $fn, $ln, $strand, $grade, $sex, $age);
-            $pi->execute();
-            $pi_id = $pi->insert_id;
+            // Explicit checks to provide better UI feedback
+            $checkId = $conn->query("SELECT StudentID FROM students WHERE StudentID = '$studentId'");
+            if ($checkId->num_rows > 0) die(json_encode(["status" => "error", "message" => "Student ID $studentId already exists."]));
             
-            $stmt = $conn->prepare("INSERT INTO students (PI_ID, FirstName, LastName, Email, Password) VALUES (?, ?, ?, ?, ?)");
-            $stmt->bind_param("issss", $pi_id, $fn, $ln, $email, $password);
+            $checkEmail = $conn->query("SELECT Email FROM students WHERE Email = '$email'");
+            if ($checkEmail->num_rows > 0) die(json_encode(["status" => "error", "message" => "Email $email is already registered."]));
+
+            $conn->begin_transaction();
+            try {
+                $strand = $data['strand'] ?? 'STEM';
+                $grade = $data['gradeLevel'] ?? 'Grade 11';
+                $sex = $data['sex'] ?? 'Male';
+                $age = $data['age'] ?? 16;
+                $fn = $fn ?? '';
+                $ln = $ln ?? '';
+                
+                $stmt = $conn->prepare("INSERT INTO students (StudentID, FirstName, LastName, Email, Password) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssss", $studentId, $fn, $ln, $email, $password);
+                $stmt->execute();
+                
+                $pi = $conn->prepare("INSERT INTO personal_information (StudentID, FirstName, LastName, Birthdate, Age, Gender, Strand, GradeLevel) VALUES (?, ?, ?, '2000-01-01', ?, ?, ?, ?)");
+                $pi->bind_param("sssisss", $studentId, $fn, $ln, $age, $sex, $strand, $grade);
+                $pi->execute();
+                
+                $conn->commit();
+                logActivity($conn, $adminId, 'CREATE_USER', 'student', $studentId, "Created student: $email");
+                echo json_encode(["status" => "success", "message" => "Student created successfully."]);
+                exit();
+            } catch (Exception $e) {
+                $conn->rollback();
+                die(json_encode(["status" => "error", "message" => "Critical failure: " . $e->getMessage()]));
+            }
         }
         
         if (isset($stmt) && $stmt->execute()) {
+            $newId = $conn->insert_id;
+            logActivity($conn, $adminId, 'CREATE_USER', $targetType, $newId, "Created $targetType: $email");
             echo json_encode(["status" => "success", "message" => ucfirst($targetType) . " created successfully."]);
         } else {
             echo json_encode(["status" => "error", "message" => "Failed to create user or email already exists."]);
@@ -110,27 +139,51 @@ if ($method === 'POST') {
             die(json_encode(["status" => "error", "message" => "Only Super Admins can alter Admin accounts."]));
         }
         
-        $table = ($targetType === 'admin') ? 'admins' : 'counselors';
-        $idCol = ($targetType === 'admin') ? 'AdminID' : 'CounselorID';
+        $table = ($targetType === 'admin') ? 'admins' : (($targetType === 'student') ? 'students' : 'counselors');
+        $idCol = ($targetType === 'admin') ? 'AdminID' : (($targetType === 'student') ? 'StudentID' : 'CounselorID');
         
         if ($action === 'toggle_block') {
             $status = (int)$data['isBlocked'];
             $stmt = $conn->prepare("UPDATE $table SET IsBlocked = ? WHERE $idCol = ?");
             $stmt->bind_param("ii", $status, $targetId);
             $stmt->execute();
+            logActivity($conn, $adminId, ($status === 1 ? 'BLOCK_USER' : 'UNBLOCK_USER'), $targetType, $targetId);
             echo json_encode(["status" => "success", "message" => "Account status updated."]);
             
         } elseif ($action === 'delete') {
-            $stmt = $conn->prepare("DELETE FROM $table WHERE $idCol = ?");
-            $stmt->bind_param("i", $targetId);
-            $stmt->execute();
-            echo json_encode(["status" => "success", "message" => "Account permanently deleted."]);
+            $conn->begin_transaction();
+            try {
+                if ($targetType === 'student') {
+                    // Stepwise purge of all student-related telemetry
+                    $conn->query("DELETE FROM riasec_recommendations WHERE ResultID IN (SELECT ResultID FROM assessment_results WHERE AssessmentID IN (SELECT AssessmentID FROM assessments WHERE StudentID = '$targetId'))");
+                    $conn->query("DELETE FROM assessment_results WHERE AssessmentID IN (SELECT AssessmentID FROM assessments WHERE StudentID = '$targetId')");
+                    $conn->query("DELETE FROM assessment_answers WHERE AssessmentID IN (SELECT AssessmentID FROM assessments WHERE StudentID = '$targetId')");
+                    $conn->query("DELETE FROM counselor_feedback WHERE AssessmentID IN (SELECT AssessmentID FROM assessments WHERE StudentID = '$targetId')");
+                    $conn->query("DELETE FROM live_sessions WHERE StudentID = '$targetId'");
+                    $conn->query("DELETE FROM assessments WHERE StudentID = '$targetId'");
+                    $conn->query("DELETE FROM personal_information WHERE StudentID = '$targetId'");
+                    $stmt = $conn->prepare("DELETE FROM students WHERE StudentID = ?");
+                } else {
+                    $stmt = $conn->prepare("DELETE FROM $table WHERE $idCol = ?");
+                }
+                
+                $stmt->bind_param("s", $targetId);
+                $stmt->execute();
+                
+                $conn->commit();
+                logActivity($conn, $adminId, 'DELETE_USER', $targetType, $targetId);
+                echo json_encode(["status" => "success", "message" => "Account permanently deleted."]);
+            } catch (Exception $e) {
+                $conn->rollback();
+                echo json_encode(["status" => "error", "message" => "Transaction failed: " . $e->getMessage()]);
+            }
             
         } elseif ($action === 'change_password') {
             $password = password_hash($data['newPassword'], PASSWORD_DEFAULT);
             $stmt = $conn->prepare("UPDATE $table SET Password = ? WHERE $idCol = ?");
             $stmt->bind_param("si", $password, $targetId);
             $stmt->execute();
+            logActivity($conn, $adminId, 'PASSWORD_RESET', $targetType, $targetId);
             echo json_encode(["status" => "success", "message" => "Keys rotated successfully."]);
         }
         exit();

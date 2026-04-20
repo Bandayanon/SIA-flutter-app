@@ -36,12 +36,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
             _session.currentAssessmentId = int.tryParse(data['assessmentId'].toString());
           }
         });
-
-        // Autopilot: If test is in progress, teleport directly to it!
-        if (_assessmentStatus == 'in_progress' && mounted) {
-           context.go('/student/assessment');
-           return;
-        }
       }
     } catch (_) {}
     setState(() => _isLoading = false);

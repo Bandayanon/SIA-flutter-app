@@ -51,6 +51,12 @@ $stmt->bind_param("ssssssisss", $studentId, $firstName, $lastName, $middleName, 
 
 if ($stmt->execute()) {
     $piId = $conn->insert_id;
+    
+    // SYNC: Update main students table with these names for Admin visibility
+    $sync = $conn->prepare("UPDATE students SET FirstName = ?, LastName = ? WHERE StudentID = ?");
+    $sync->bind_param("sss", $firstName, $lastName, $studentId);
+    $sync->execute();
+    
     echo json_encode(["status" => "success", "piId" => $piId]);
 } else {
     echo json_encode(["status" => "error", "message" => "Failed to save personal information"]);

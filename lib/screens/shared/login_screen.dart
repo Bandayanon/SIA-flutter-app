@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           // ── Title with Montserrat (STRICTLY login screen only) ──
                           Text(
-                            _userType == 'admin' ? 'Citadel Portal' : 'RIASEC Assessment',
+                            _userType == 'admin' ? 'Admin Portal' : 'RIASEC Assessment',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.montserrat(
                               fontSize: 26,
@@ -204,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _userType == 'admin' ? 'Project Citadel Level 4' : 'v2.0 - Security Hardened',
+                            _userType == 'admin' ? 'Administrators Only!' : 'v3.0 - Stable Release',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 10,

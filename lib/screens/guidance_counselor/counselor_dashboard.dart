@@ -75,8 +75,13 @@ class _CounselorDashboardState extends State<CounselorDashboard> {
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      GestureDetector(
-                        onLongPress: () => _showAdminPinDialog(context),
+                      InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Profile picture settings coming soon!')),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(30),
                         child: CircleAvatar(
                           radius: 30,
                           backgroundColor: AppTheme.primaryPurple.withOpacity(0.15),
@@ -169,7 +174,6 @@ class _CounselorDashboardState extends State<CounselorDashboard> {
 
                 // Approval rate card
                 Card(
-                  color: AppTheme.primaryPurple.withOpacity(0.05),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -295,8 +299,9 @@ class _CounselorDashboardState extends State<CounselorDashboard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: AppTheme.backgroundWhite,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
         children: [

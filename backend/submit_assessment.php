@@ -94,29 +94,31 @@ if (!$res->execute()) {
 $resultId = (int)$conn->insert_id;
 
 $rank = 1;
-foreach ($top3 as $type) {
-    $courses = $conn->prepare("
-        SELECT CourseID, CourseName FROM riasec_courses
-        WHERE RIASECCategory = ? ORDER BY RAND() LIMIT 1
-    ");
-    $courses->bind_param("s", $type);
-    $courses->execute();
-    $courseResult = $courses->get_result();
-
-    while ($course = $courseResult->fetch_assoc()) {
-        if ($rank > 6) break;
-        $matchScore  = (float)$percentages[$type];
-        $explanation = "This course aligns with your {$type} interest profile (score: {$matchScore}%).";
-
-        $recStmt = $conn->prepare("
-            INSERT INTO riasec_recommendations (ResultID, CourseID, MatchScore, Explanation, `Rank`)
-            VALUES (?, ?, ?, ?, ?)
+    foreach ($top3 as $type) {
+        $courses = $conn->prepare("
+            SELECT CourseID, CourseName, ExplanationTip FROM riasec_courses
+            WHERE RIASECCategory = ? ORDER BY RAND() LIMIT 1
         ");
-        $recStmt->bind_param("iidsi", $resultId, $course['CourseID'], $matchScore, $explanation, $rank);
-        $recStmt->execute();
-        $rank++;
+        $courses->bind_param("s", $type);
+        $courses->execute();
+        $courseResult = $courses->get_result();
+
+        while ($course = $courseResult->fetch_assoc()) {
+            if ($rank > 6) break;
+            
+            $matchScore = (float)$percentages[$type];
+            // Provide the unique course explanation instead of a generic one
+            $explanation = $course['ExplanationTip'] ?? "This course aligns with your {$type} interest profile.";
+
+            $recStmt = $conn->prepare("
+                INSERT INTO riasec_recommendations (ResultID, CourseID, MatchScore, Explanation, `Rank`)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $recStmt->bind_param("iidsi", $resultId, $course['CourseID'], $matchScore, $explanation, $rank);
+            $recStmt->execute();
+            $rank++;
+        }
     }
-}
 
 $upd = $conn->prepare("UPDATE assessments SET Status = 'pending_review', SubmittedAt = NOW() WHERE AssessmentID = ?");
 $upd->bind_param("i", $assessmentId);

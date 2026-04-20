@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service.dart';
+import '../../services/session_manager.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/counselor_sidebar.dart';
 
@@ -13,6 +14,7 @@ class StudentRecordsScreen extends StatefulWidget {
 }
 
 class _StudentRecordsScreenState extends State<StudentRecordsScreen> {
+  final _session = SessionManager();
   List<Map<String, dynamic>> _records = [];
   bool _isLoading = true;
 
@@ -106,62 +108,28 @@ class _StudentRecordsScreenState extends State<StudentRecordsScreen> {
     _loadRecords();
   }
 
-  String _generateCsv() {
-    final header = [
-      'Assessment ID', 'Student ID', 'Student Name', 'Grade Level',
-      'Strand', 'Gender', 'Age', 'Submitted At', 'Status',
-      'Primary Type', 'Secondary Type', 'Tertiary Type',
-      'R%', 'I%', 'A%', 'S%', 'E%', 'C%',
-      'Counselor Action', 'Feedback Notes', 'Reviewed At'
-    ].join(',');
-
-    final rows = _records.map((r) {
-      final scores = r['scores'] as Map<String, dynamic>;
-      return [
-        r['assessmentId'],
-        r['studentId'],
-        '"${r['studentName']}"',
-        r['gradeLevel'],
-        '"${r['strand']}"',
-        r['gender'],
-        r['age'],
-        r['submittedAt'] ?? '',
-        r['status'],
-        r['primaryType'] ?? '',
-        r['secondaryType'] ?? '',
-        r['tertiaryType'] ?? '',
-        scores['R'] ?? 0,
-        scores['I'] ?? 0,
-        scores['A'] ?? 0,
-        scores['S'] ?? 0,
-        scores['E'] ?? 0,
-        scores['C'] ?? 0,
-        r['counselorAction'] ?? '',
-        '"${(r['feedbackNotes'] ?? '').toString().replaceAll('"', '""')}"',
-        r['reviewedAt'] ?? '',
-      ].join(',');
-    });
-
-    return '$header\n${rows.join('\n')}';
-  }
-
   Future<void> _downloadCsv() async {
     try {
-      final csv = _generateCsv();
-      final uri = Uri.parse('data:text/csv;charset=utf-8,${Uri.encodeComponent(csv)}');
+      final String adminId = _session.counselorId?.toString() ?? '0';
+      final String roleId = _session.roleId?.toString() ?? '2';
       
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('CSV Download Started — ${_records.length} records.'),
-              backgroundColor: AppTheme.success,
-            ),
-          );
-        }
-      } else {
-        throw 'Could not launch download';
+      final Uri uri = Uri.parse(
+        '${ApiService.baseUrl}/admin_archive.php?exportCsv=1'
+        '&adminId=$adminId'
+        '&roleId=$roleId'
+      );
+      
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw 'Could not launch $uri';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Starting CSV Export...'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

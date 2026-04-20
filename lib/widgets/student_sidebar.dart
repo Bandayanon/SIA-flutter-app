@@ -29,13 +29,21 @@ class StudentSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 30,
+                InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile picture settings coming soon!')),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(30),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -101,6 +109,7 @@ class StudentSidebar extends StatelessWidget {
               style: TextStyle(color: const Color(0xFFE53E3E)),
             ),
             onTap: () {
+              session.logout();
               context.go('/login');
             },
           ),

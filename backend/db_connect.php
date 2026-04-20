@@ -2,6 +2,7 @@
 // Quiet Shield: Prevent PHP from sending HTML errors that break the Flutter JSON
 ini_set('display_errors', 0);
 error_reporting(0);
+date_default_timezone_set('Asia/Manila');
 header("Content-Type: application/json");
 
 // --- STEP 1: LOAD .ENV MANUALLY ---
@@ -39,4 +40,5 @@ if (!@mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, MYSQLI_C
 }
 
 @mysqli_set_charset($conn, "utf8mb4");
+@mysqli_query($conn, "SET time_zone = '+08:00'");
 ?>

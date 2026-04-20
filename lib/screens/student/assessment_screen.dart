@@ -440,12 +440,20 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
             onPressed: () async {
               Navigator.pop(ctx);
-              setState(() => _isLoading = true); // show locking screen layer
-              if (_session.currentAssessmentId != null) {
-                await ApiService.cancelAssessment(_session.currentAssessmentId!);
-                _session.currentAssessmentId = null;
+              setState(() => _isLoading = true);
+              try {
+                if (_session.currentAssessmentId != null) {
+                  await ApiService.cancelAssessment(_session.currentAssessmentId!);
+                  _session.currentAssessmentId = null;
+                }
+                // Clear local progress
+                html.window.localStorage.remove('riasec_answers');
+                html.window.localStorage.remove('riasec_currentIndex');
+              } catch (_) {}
+              
+              if (mounted) {
+                context.go('/student/dashboard');
               }
-              if (mounted) context.go('/student/dashboard');
             },
             child: const Text('Leave & Cancel'),
           ),
