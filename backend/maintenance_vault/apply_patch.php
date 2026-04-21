@@ -6,9 +6,11 @@ error_reporting(E_ALL);
 include 'db_connect.php';
 
 $sqlFiles = [
+    'v3_final_schema.sql',      // Fix base tables first
     'citadel_v2_patch.sql',
     'citadel_v2_logs.sql',
-    'v3_course_update.sql'
+    'v3_course_update.sql',     // Reload courses into the fixed table
+    'v3_production_reset.sql'
 ];
 
 foreach ($sqlFiles as $filename) {

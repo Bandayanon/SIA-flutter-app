@@ -167,15 +167,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // School icon
-                          CircleAvatar(
-                            radius: 36,
-                            backgroundColor:
-                                AppTheme.primaryPurple.withOpacity(0.12),
-                            child: const Icon(
-                              Icons.school,
-                              size: 40,
-                              color: AppTheme.primaryPurple,
+                          // College Logo
+                          Center(
+                            child: Image.asset(
+                              'assets/images/Jose_Maria_College_logo.png',
+                              height: 100, // Adjust size as needed
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(height: 18),

@@ -2,7 +2,7 @@ class ApiConfig {
   // ── THE MASTER SWITCH ──────────────────────────────────────────────────────
   // Set this to 'true' to test locally with Docker (localhost:8000)
   // Set this to 'false' to test in the DigitalOcean cloud
-  static const bool isLocal = true; 
+  static const bool isLocal = false; 
 
   // ── THE ADDRESS BOOK ──────────────────────────────────────────────────────
   

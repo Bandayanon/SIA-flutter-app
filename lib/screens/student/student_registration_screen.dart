@@ -124,15 +124,21 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(
+                          Stack(
+                            alignment: Alignment.center,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back, color: AppTheme.primaryPurple),
-                                onPressed: () => context.go('/login'),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: AppTheme.primaryPurple),
+                                  onPressed: () => context.go('/login'),
+                                ),
                               ),
-                              const Spacer(),
-                              const Icon(Icons.person_add, size: 30, color: AppTheme.primaryPurple),
-                              const Spacer(flex: 2),
+                              Image.asset(
+                                'assets/images/Jose_Maria_College_logo.png',
+                                height: 80,
+                                fit: BoxFit.contain,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),

@@ -1,8 +1,10 @@
 # Use the official PHP Apache image
 FROM php:8.2-apache
 
-# Install mysqli extension
-RUN docker-php-ext-install mysqli && docker-php-ext-enable mysqli
+# Install dependencies for PHPMailer (unzip and zip extension)
+RUN apt-get update && apt-get install -y unzip libzip-dev \
+    && docker-php-ext-install mysqli zip \
+    && docker-php-ext-enable mysqli zip
 
 # Enable Apache mod_rewrite (common for PHP apps)
 RUN a2enmod rewrite
@@ -12,6 +14,9 @@ WORKDIR /var/www/html
 
 # Copy the PHP files into the container
 COPY . /var/www/html/
+
+# Run the downloader to install PHPMailer in the vendor folder
+RUN php download_phpmailer.php
 
 # Ensure permissions
 RUN chown -R www-data:www-data /var/www/html
