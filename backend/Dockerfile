@@ -1,10 +1,13 @@
 # Use the official PHP Apache image
 FROM php:8.2-apache
 
-# Install dependencies for PHPMailer (unzip and zip extension)
+# Install dependencies for PHPMailer (unzip and zip extension) and OPcache
 RUN apt-get update && apt-get install -y unzip libzip-dev \
-    && docker-php-ext-install mysqli zip \
-    && docker-php-ext-enable mysqli zip
+    && docker-php-ext-install mysqli zip opcache \
+    && docker-php-ext-enable mysqli zip opcache
+
+# Copy OPcache configuration
+COPY opcache.ini $PHP_INI_DIR/conf.d/opcache.ini
 
 # Enable Apache mod_rewrite (common for PHP apps)
 RUN a2enmod rewrite

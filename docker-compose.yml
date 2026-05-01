@@ -24,6 +24,11 @@ services:
       - db
     volumes:
       - ./backend:/var/www/html
+    environment:
+      - DB_HOST=db
+      - DB_NAME=riasec_db
+      - DB_USER=riasec_user
+      - DB_PASS=riasec_password
     restart: unless-stopped
 
   db:

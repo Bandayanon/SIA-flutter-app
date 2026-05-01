@@ -36,7 +36,8 @@ CREATE TABLE `assessments` (
   `StartedAt` timestamp NOT NULL DEFAULT current_timestamp(),
   `SubmittedAt` timestamp NULL DEFAULT NULL,
   KEY `StudentID` (`StudentID`),
-  KEY `PI_ID` (`PI_ID`)
+  KEY `PI_ID` (`PI_ID`),
+  KEY `idx_assessment_status` (`Status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -96,7 +97,8 @@ CREATE TABLE `counselors` (
   `Password` varchar(255) NOT NULL,
   `IsBlocked` TINYINT(1) NOT NULL DEFAULT 0,
   `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  KEY `RoleID` (`RoleID`)
+  KEY `RoleID` (`RoleID`),
+  KEY `idx_counselor_name` (`FirstName`, `LastName`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci AUTO_INCREMENT=2;
 
 --
@@ -165,7 +167,10 @@ CREATE TABLE `personal_information` (
   `Strand` varchar(150) NOT NULL,
   `GradeLevel` varchar(20) NOT NULL,
   `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  KEY `StudentID` (`StudentID`)
+  KEY `StudentID` (`StudentID`),
+  KEY `idx_pi_name` (`FirstName`, `LastName`),
+  KEY `idx_pi_strand` (`Strand`),
+  KEY `idx_pi_grade` (`GradeLevel`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -337,7 +342,8 @@ CREATE TABLE `students` (
   `Password` varchar(255) NOT NULL,
   `IsBlocked` TINYINT(1) NOT NULL DEFAULT 0,
   `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  KEY `RoleID` (`RoleID`)
+  KEY `RoleID` (`RoleID`),
+  KEY `idx_student_name` (`FirstName`, `LastName`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --

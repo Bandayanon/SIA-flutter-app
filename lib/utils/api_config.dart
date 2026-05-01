@@ -9,8 +9,8 @@ class ApiConfig {
   // Local Docker Base URL
   static const String _localBaseUrl = 'http://127.0.0.1:8000';
   
-  // DigitalOcean Cloud Base URL
-  static const String _productionBaseUrl = 'https://riasec-app-i52m2.ondigitalocean.app/wasabilazybumai-riasec-backend';
+  // DigitalOcean Cloud Base URL (Now using relative proxy path)
+  static const String _productionBaseUrl = '/api';
 
   // The active URL
   static String get baseUrl => isLocal ? _localBaseUrl : _productionBaseUrl;
